@@ -6,6 +6,35 @@ import { CreateBookingDTOType } from "../dtos/booking.dto";
 export class BookingService {
   repo = new BookingRepository();
 
+  private normalizeStatus(value: unknown) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .replace(/-/g, "_")
+      .trim();
+  }
+
+  private isUnassigned(provider: unknown) {
+    if (provider === null || provider === undefined) return true;
+    if (typeof provider === "string") {
+      const normalized = provider.toLowerCase().trim();
+      return (
+        normalized === "" ||
+        normalized === "null" ||
+        normalized === "undefined" ||
+        normalized === "none" ||
+        normalized === "unassigned" ||
+        normalized === "not_assigned" ||
+        normalized === "not-assigned"
+      );
+    }
+    if (typeof provider === "object") {
+      const entity = provider as { _id?: string; id?: string };
+      return !(entity._id || entity.id);
+    }
+    return false;
+  }
+
       async getServices() {
       return ServiceModel.find({ isActive: { $ne: false } }).sort({ title: 1 });
     }
@@ -72,9 +101,20 @@ export class BookingService {
 
   /* ===================== WORKER ===================== */
 
+  /** Get all bookings (worker/admin overview) */
+  async getAllBookings() {
+    return this.repo.findAll();
+  }
+
   /** Get all bookings available for workers to accept */
   async getAvailableJobs() {
-    return this.repo.findAvailable();
+    const rows = await this.repo.findAll();
+    const closed = new Set(["completed", "cancelled", "accepted", "assigned", "in_progress"]);
+    return rows.filter((row: any) => {
+      const status = this.normalizeStatus(row?.status);
+      const openStatus = !status || !closed.has(status);
+      return openStatus && this.isUnassigned(row?.providerId);
+    });
   }
 
   /** Get all bookings assigned to a specific worker */
@@ -93,8 +133,8 @@ export class BookingService {
     }
 
     // Must be in an available status
-    const availableStatuses = ["pending_payment", "confirmed", "pending"];
-    if (!availableStatuses.includes(booking.status)) {
+    const unavailableStatuses = new Set(["completed", "cancelled", "accepted", "assigned", "in_progress"]);
+    if (unavailableStatuses.has(this.normalizeStatus(booking.status))) {
       throw new Error("This booking is no longer available");
     }
 

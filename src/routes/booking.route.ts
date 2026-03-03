@@ -18,6 +18,9 @@ router.get("/worker/me", authorizedMiddleware, controller.getWorkerJobs.bind(con
 router.patch("/:id/accept", authorizedMiddleware, controller.acceptJob.bind(controller));
 router.patch("/:id/complete", authorizedMiddleware, controller.completeJob.bind(controller));
 
+// list all bookings (worker/admin overview) — MUST be after named routes
+router.get("/", authorizedMiddleware, controller.getAllBookings.bind(controller));
+
 router.delete("/:id", authorizedMiddleware, controller.deleteBooking.bind(controller));
 
 export default router;

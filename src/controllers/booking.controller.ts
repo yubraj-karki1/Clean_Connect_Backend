@@ -99,6 +99,16 @@ export class BookingController {
     }
   }
 
+  /** GET /api/bookings — list all bookings (worker/admin view) */
+  async getAllBookings(req: Request, res: Response) {
+    try {
+      const data = await this.service.getAllBookings();
+      return res.json({ success: true, data });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+
   /** PATCH /api/bookings/:id/complete — worker marks booking as done */
   async completeJob(req: Request, res: Response) {
     try {

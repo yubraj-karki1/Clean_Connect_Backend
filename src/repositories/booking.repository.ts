@@ -31,15 +31,36 @@ export class BookingRepository {
 
   /* ===================== WORKER ===================== */
 
+  /** Find all bookings */
+  async findAll() {
+    return BookingModel.find()
+      .sort({ startAt: -1 })
+      .populate({ path: "serviceId", select: "title hourlyRate" })
+      .populate({ path: "addressId", select: "line1 city state zip country" })
+      .populate({ path: "userId", select: "fullName email" })
+      .populate({ path: "providerId", select: "fullName email" });
+  }
+
   /** Find all bookings that are available for workers (pending/confirmed, no provider assigned) */
   async findAvailable() {
     return BookingModel.find({
-      providerId: null,
-      status: { $in: ["pending_payment", "confirmed", "pending"] },
+      $and: [
+        {
+          $or: [
+            { providerId: null },
+            { providerId: { $exists: false } },
+            { providerId: "" },
+          ],
+        },
+        {
+          status: { $nin: ["completed", "cancelled", "accepted", "assigned", "in-progress"] },
+        },
+      ],
     })
       .sort({ startAt: 1 })
       .populate({ path: "serviceId", select: "title hourlyRate" })
-      .populate({ path: "addressId", select: "line1 city state zip country" });
+      .populate({ path: "addressId", select: "line1 city state zip country" })
+      .populate({ path: "userId", select: "fullName email" });
   }
 
   /** Find all bookings assigned to a specific worker */
@@ -47,7 +68,8 @@ export class BookingRepository {
     return BookingModel.find({ providerId: workerId })
       .sort({ startAt: -1 })
       .populate({ path: "serviceId", select: "title hourlyRate" })
-      .populate({ path: "addressId", select: "line1 city state zip country" });
+      .populate({ path: "addressId", select: "line1 city state zip country" })
+      .populate({ path: "userId", select: "fullName email" });
   }
 
   /** Assign a worker (providerId) to a booking and set status to "accepted" */
